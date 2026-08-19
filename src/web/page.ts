@@ -1,27 +1,32 @@
 const STYLES = `
   :root {
-    --paper: #f3f1ea;
-    --ink: #151612;
-    --muted: #6b6b63;
-    --line: #d5d2c7;
-    --signal: #d75b31;
-    --ok: #24684c;
+    --paper: #0b0711;
+    --surface: #130c1d;
+    --ink: #f2ebff;
+    --muted: #a99db8;
+    --line: #30243d;
+    --signal: #b96cff;
+    --signal-soft: rgba(185,108,255,.09);
+    --ok: #8f72ff;
     --display: "Iowan Old Style", Baskerville, Georgia, serif;
     --sans: "Avenir Next", "Helvetica Neue", sans-serif;
     --mono: "SFMono-Regular", "Cascadia Mono", Consolas, monospace;
   }
 
   * { box-sizing: border-box; }
-  html { color-scheme: light; }
+  html { color-scheme: dark; }
   body {
     margin: 0;
     min-height: 100vh;
     color: var(--ink);
-    background: var(--paper);
+    background:
+      radial-gradient(circle at 78% -12%, rgba(122,57,190,.19), transparent 34rem),
+      var(--paper);
     font-family: var(--sans);
     font-size: 14px;
     -webkit-font-smoothing: antialiased;
   }
+  ::selection { color: var(--paper); background: var(--signal); }
 
   .shell { width: min(1060px, calc(100% - 40px)); margin: 0 auto; padding: 42px 0 60px; }
   .head {
@@ -50,8 +55,14 @@ const STYLES = `
     letter-spacing: .08em;
     text-transform: uppercase;
   }
-  .live-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--ok); }
-  .live-dot.stale { background: var(--signal); }
+  .live-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--ok);
+    box-shadow: 0 0 14px rgba(143,114,255,.72);
+  }
+  .live-dot.stale { background: #f06cae; box-shadow: 0 0 14px rgba(240,108,174,.6); }
 
   .trace { border-top: 1px solid var(--ink); }
   .checkpoint {
@@ -62,8 +73,11 @@ const STYLES = `
     align-items: center;
     border-bottom: 1px solid var(--line);
   }
-  .checkpoint[data-state="pending"] { color: #98958b; }
-  .checkpoint[data-state="active"] { background: rgba(215,91,49,.045); }
+  .checkpoint[data-state="pending"] { color: #6f637c; }
+  .checkpoint[data-state="active"] {
+    background: var(--signal-soft);
+    box-shadow: inset 2px 0 0 var(--signal);
+  }
   .ordinal { display: flex; align-items: center; gap: 11px; font-family: var(--mono); font-size: 10px; }
   .mark { width: 8px; height: 8px; border: 1px solid currentColor; border-radius: 50%; flex: none; }
   .checkpoint[data-state="done"] .mark { border-color: var(--ok); background: var(--ok); }
@@ -91,14 +105,16 @@ const STYLES = `
     text-align: right;
     text-transform: uppercase;
     text-underline-offset: 3px;
+    transition: color 150ms ease-out;
   }
+  .tx-link:hover { color: var(--signal); }
   .tx-link.empty { color: var(--line); text-decoration: none; }
   .checkpoint-controls { display: flex; justify-content: flex-end; align-items: center; gap: 11px; }
   .action-button, .dialog-button {
     appearance: none;
-    border: 1px solid var(--ink);
-    background: var(--ink);
-    color: var(--paper);
+    border: 1px solid var(--signal);
+    background: var(--signal);
+    color: #100719;
     cursor: pointer;
     font-family: var(--mono);
     font-size: 9.5px;
@@ -107,7 +123,7 @@ const STYLES = `
     text-transform: uppercase;
   }
   .action-button { min-height: 31px; padding: 0 11px; white-space: nowrap; }
-  .action-button:hover { background: var(--signal); border-color: var(--signal); }
+  .action-button:hover { background: var(--ink); border-color: var(--ink); }
   .action-button:focus-visible, .dialog-button:focus-visible, .confirm-input:focus-visible {
     outline: 2px solid var(--signal);
     outline-offset: 2px;
@@ -158,12 +174,12 @@ const STYLES = `
   dialog {
     width: min(590px, calc(100% - 28px));
     padding: 0;
-    border: 1px solid var(--ink);
+    border: 1px solid var(--line);
     color: var(--ink);
-    background: var(--paper);
-    box-shadow: 12px 12px 0 rgba(21,22,18,.16);
+    background: var(--surface);
+    box-shadow: 14px 14px 0 rgba(3,1,7,.46), 0 0 48px rgba(126,67,185,.13);
   }
-  dialog::backdrop { background: rgba(21,22,18,.48); }
+  dialog::backdrop { background: rgba(4,2,8,.76); backdrop-filter: blur(3px); }
   .dialog-body { padding: 24px; }
   .dialog-kicker { color: var(--signal); font-family: var(--mono); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; }
   .dialog-title { margin: 8px 0 10px; font-family: var(--display); font-size: 32px; font-weight: 400; }
@@ -183,7 +199,7 @@ const STYLES = `
   }
   .dialog-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
   .dialog-button { min-height: 35px; padding: 0 15px; }
-  .dialog-button.secondary { background: transparent; color: var(--ink); }
+  .dialog-button.secondary { border-color: var(--line); background: transparent; color: var(--ink); }
   .dialog-button:disabled { opacity: .32; cursor: not-allowed; }
   .action-output {
     max-height: 240px;
@@ -191,7 +207,7 @@ const STYLES = `
     padding: 12px;
     overflow: auto;
     border: 1px solid var(--line);
-    background: #ebe8de;
+    background: #0d0814;
     color: var(--muted);
     font-family: var(--mono);
     font-size: 10px;
