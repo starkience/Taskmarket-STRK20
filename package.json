@@ -1,0 +1,36 @@
+{
+  "name": "taskmarket-strk20-agent",
+  "version": "0.3.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "description": "Headless agent moving a TaskMarket USDC bounty through the STRK20 privacy pool.",
+  "scripts": {
+    "agent": "tsx src/cli.ts",
+    "typecheck": "tsc -b",
+    "test": "vitest run",
+    "check": "npm run typecheck && npm run test",
+    "taskmarket": "taskmarket",
+    "new-key": "node scripts/new-agent-key.mjs AGENT_EVM_PRIVATE_KEY",
+    "new-worker-key": "node scripts/new-agent-key.mjs WORKER_EVM_PRIVATE_KEY",
+    "new-payout-key": "node scripts/new-agent-key.mjs AGENT_PAYOUT_PRIVATE_KEY"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@starkware-libs/starknet-privacy-bridge": "file:vendor/tarballs/starkware-libs-starknet-privacy-bridge-0.1.18.tgz",
+    "@starkware-libs/starknet-privacy-sdk": "file:vendor/tarballs/starkware-libs-starknet-privacy-sdk-0.14.3-rc.3.tgz",
+    "starknet": "10.0.0-beta.6",
+    "viem": "^2.21.0"
+  },
+  "devDependencies": {
+    "@fontsource/space-grotesk": "^5.3.0",
+    "@lucid-agents/taskmarket": "1.10.0",
+    "@types/node": "^24.13.2",
+    "motion": "^13.1.0",
+    "tsx": "^4.19.2",
+    "typescript": "~6.0.2",
+    "vitest": "^4.1.10"
+  }
+}

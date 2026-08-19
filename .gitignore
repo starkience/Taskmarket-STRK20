@@ -1,0 +1,7 @@
+live/.state/
+live/.env.local
+.env.local
+.env.*.local
+node_modules/
+vendor/
+dist/
