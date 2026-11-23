@@ -14,13 +14,14 @@ export interface SnapshotResult {
 // Every read is independently tolerant: one unreachable service must degrade a
 // single row to "unread" rather than blanking the whole board.
 export async function gather(readers: {
-  task: () => TaskMarketState;
+  task: () => Promise<TaskMarketState> | TaskMarketState;
   baseUsdc: () => Promise<bigint>;
   payoutUsdc: () => Promise<bigint>;
   privateUsdc: () => Promise<bigint>;
   transfer: () => Promise<Snapshot["transfer"]>;
   deposit: () => DepositReceipt | null;
   withdrawal: () => WithdrawalReceipt | null;
+  earningIntent?: () => Snapshot["earningIntent"];
 }): Promise<SnapshotResult> {
   const warnings: string[] = [];
 
@@ -54,6 +55,9 @@ export async function gather(readers: {
       transfer: await tryRead("transfer status", readers.transfer, null),
       deposit: await tryRead("deposit receipt", readers.deposit, null),
       withdrawal: await tryRead("withdrawal receipt", readers.withdrawal, null),
+      earningIntent: readers.earningIntent
+        ? await tryRead("earning intent", readers.earningIntent, null)
+        : null,
     },
     warnings,
   };
@@ -137,11 +141,40 @@ export function readDepositReceipt(dir: string): DepositReceipt | null {
   const amountNet = bigintField(record.amountNet);
   if (amountNet === null) return null;
   return {
+    taskId: stringField(record.taskId),
     burnTxHash: stringField(record.burnTxHash),
     poolTxHash: stringField(record.poolTxHash),
     amountNet,
     completedAt: stringField(record.completedAt),
   };
+}
+
+export function readEarningReceipt(dir: string, taskId: string): DepositReceipt | null {
+  if (!/^0x[0-9a-fA-F]{64}$/.test(taskId)) return null;
+  const record = objectData(`${dir}/earning-${taskId}.json`);
+  if (!record) return null;
+  const amountNet = bigintField(record.amountNet);
+  if (amountNet === null || stringField(record.taskId)?.toLowerCase() !== taskId.toLowerCase()) {
+    return null;
+  }
+  return {
+    taskId,
+    burnTxHash: stringField(record.burnTxHash),
+    poolTxHash: stringField(record.poolTxHash),
+    amountNet,
+    completedAt: stringField(record.completedAt),
+  };
+}
+
+export function readEarningIntent(dir: string): Snapshot["earningIntent"] {
+  const record = objectData(`${dir}/earning-intent.json`);
+  if (!record) return null;
+  const taskId = stringField(record.taskId);
+  const amountWei = bigintField(record.amountWei);
+  if (!taskId || !/^0x[0-9a-f]{64}$/.test(taskId) || amountWei === null || amountWei <= 0n) {
+    throw new Error("Invalid earnings intent; inspect it before resuming a transfer.");
+  }
+  return { taskId, amountWei };
 }
 
 export function readWithdrawalReceipt(dir: string): WithdrawalReceipt | null {

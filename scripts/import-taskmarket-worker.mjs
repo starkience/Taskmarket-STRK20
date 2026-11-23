@@ -50,6 +50,7 @@ let imported = false;
 try {
   const result = spawnSync(cli, ["wallet", "import"], {
     cwd: workspace,
+    env: { ...process.env, TASKMARKET_NETWORK: "base" },
     input: `${workerKey}\n`,
     stdio: ["pipe", "inherit", "inherit"],
     encoding: "utf8",

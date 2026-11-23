@@ -101,7 +101,9 @@ export function createActionRunner(env: NodeJS.ProcessEnv) {
       case "resume-deposit": {
         if (!action.amount) throw new Error("Deposit action has no amount.");
         const status = await runChild(tsx, ["src/cli.ts", "status"], env);
-        const args = ["src/cli.ts", "deposit", action.amount];
+        const args = action.taskId
+          ? ["src/cli.ts", "shield", action.taskId, action.amount]
+          : ["src/cli.ts", "deposit", action.amount];
         if (action.id === "resume-deposit") args.push("--resume");
         const result = await runChild(tsx, args, env, confirmationInput);
         return { output: `${status.output}\n\n${result.output}`.trim() };

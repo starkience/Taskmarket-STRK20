@@ -6,9 +6,12 @@ import { resolve } from "node:path";
 // prove completion without guessing from a zero balance.
 export function writePublicReceipt(
   env: Record<string, string | undefined>,
-  name: "deposit-receipt.json" | "withdrawal-receipt.json",
+  name: "deposit-receipt.json" | "withdrawal-receipt.json" | `earning-${string}.json`,
   receipt: Record<string, string | null>,
 ): void {
+  if (name.startsWith("earning-") && !/^earning-0x[0-9a-fA-F]{64}\.json$/.test(name)) {
+    throw new Error("Invalid earnings receipt name.");
+  }
   const dir = resolve(env.TASKMARKET_STATE_DIR?.trim() || "live/.state");
   mkdirSync(dir, { recursive: true });
   writeFileSync(

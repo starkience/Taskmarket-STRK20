@@ -17,11 +17,13 @@ export interface DashboardAction {
   readonly confirmation: string;
   /** Decimal command amount for bridge actions; never key material. */
   readonly amount?: string;
+  readonly taskId?: string;
 }
 
 const DEPOSIT_AMOUNT = 5_000_000n;
 const WITHDRAW_RESERVE = 250_000n;
 const WITHDRAW_QUANTUM = 500_000n;
+const EARNINGS_RESERVE = 100_000n;
 
 function usdcCommandAmount(amount: bigint): string {
   return formatUnits(amount, 6);
@@ -44,7 +46,7 @@ export function deriveDashboardActions(
 ): DashboardAction[] {
   const { task, transfer } = snapshot;
 
-  if (task.id && !task.submitted) {
+  if (task.source !== "external" && task.id && !task.submitted) {
     return [
       {
         id: "submit",
@@ -56,7 +58,7 @@ export function deriveDashboardActions(
     ];
   }
 
-  if (task.id && task.submitted && !task.settled && task.worker) {
+  if (task.source !== "external" && task.id && task.submitted && !task.settled && task.worker) {
     return [
       {
         id: "accept",
@@ -69,6 +71,10 @@ export function deriveDashboardActions(
   }
 
   if (transfer?.direction === "into-pool") {
+    if (task.source === "external" && (
+      snapshot.earningIntent?.taskId !== task.id ||
+      snapshot.earningIntent.amountWei !== transfer.amountWei
+    )) return [];
     const amount = usdcCommandAmount(transfer.amountWei);
     return [
       {
@@ -78,6 +84,7 @@ export function deriveDashboardActions(
         detail: "Resumes the recorded transfer; it does not issue another Base burn.",
         confirmation: bridgeConfirmation("deposit", transfer.amountWei),
         amount,
+        ...(task.source === "external" && task.id ? { taskId: task.id } : {}),
       },
     ];
   }
@@ -96,16 +103,29 @@ export function deriveDashboardActions(
     ];
   }
 
-  const depositDone = Boolean(snapshot.deposit) || (snapshot.privateUsdc ?? 0n) > 0n;
-  if (task.settled && !depositDone && (snapshot.baseUsdc ?? 0n) >= DEPOSIT_AMOUNT) {
+  const depositDone = task.source === "external"
+    ? snapshot.deposit?.taskId === task.id
+    : Boolean(snapshot.deposit) || (snapshot.privateUsdc ?? 0n) > 0n;
+  const earnedCap = task.source === "external"
+    ? (snapshot.baseUsdc ?? 0n) < (task.workerPayment ?? 0n)
+      ? snapshot.baseUsdc ?? 0n
+      : task.workerPayment ?? 0n
+    : DEPOSIT_AMOUNT;
+  const depositAmount = task.source === "external"
+    ? earnedCap > EARNINGS_RESERVE
+      ? ((earnedCap - EARNINGS_RESERVE) / WITHDRAW_QUANTUM) * WITHDRAW_QUANTUM
+      : 0n
+    : DEPOSIT_AMOUNT;
+  if (task.settled && !depositDone && depositAmount > 0n && (snapshot.baseUsdc ?? 0n) >= depositAmount) {
     return [
       {
         id: "deposit",
         step: 4,
-        label: "Deposit 5 USDC",
+        label: `Deposit ${usdcCommandAmount(depositAmount)} USDC`,
         detail: "Requires Base ETH. Runs status first, then Base → Starknet → STRK20.",
-        confirmation: bridgeConfirmation("deposit", DEPOSIT_AMOUNT),
-        amount: usdcCommandAmount(DEPOSIT_AMOUNT),
+        confirmation: bridgeConfirmation("deposit", depositAmount),
+        amount: usdcCommandAmount(depositAmount),
+        ...(task.source === "external" && task.id ? { taskId: task.id } : {}),
       },
     ];
   }

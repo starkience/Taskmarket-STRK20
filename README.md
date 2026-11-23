@@ -19,16 +19,16 @@ The agent holds one low-value EVM key. The Starknet key and the viewing key are
 derived from a signature over that key, in memory, on every run — neither is
 persisted.
 
-This repository contains the current headless-agent implementation. It does not
+This repository contains the headless-agent implementation. It does not
 mix the earlier Ready Wallet API key model with the agent-owned signer.
 
 ## Run
 
-Node 20 or newer.
+Node 24 or newer. The refreshed dependency graph requires Node 24.
 
 ```bash
 scripts/build-deps.sh     # builds the two StarkWare packages from source
-npm install
+npm ci
 set -a; . live/.env.local; set +a
 export NETWORK=mainnet
 npm run agent -- preflight
@@ -46,11 +46,45 @@ npm run agent -- dashboard                       # guarded operator UI at 127.0.
 npm run agent -- preflight                       # service reachability, agent EOA
 npm run agent -- identity                        # print the agent EOA
 npm run agent -- status                          # any in-flight transfer
+npm run agent -- earnings <task-id>              # read an existing Base payout
+npm run agent -- shield <task-id> <amount>        # guard and shield that payout
+npm run agent -- dashboard <task-id>             # dashboard for an existing payout
 npm run agent -- deposit <amount> [--resume]     # Base USDC -> pool
 npm run agent -- balance                         # public STRK + private USDC
 npm run agent -- transfer <amount> <sn-address>  # inside the pool
 npm run agent -- withdraw <amount> [base-address] # pool -> agent payout address
 ```
+
+### Use an existing Taskmarket payout
+
+The demonstration bounty is optional. Import or configure the **same Base EOA**
+as `AGENT_EVM_PRIVATE_KEY`, then use the ID of a completed Base task that paid
+that address. The Taskmarket CLI must be able to read the task; a private task
+may require its worker's Taskmarket keystore:
+
+```bash
+TASK_ID="<paste the 0x-prefixed, 64-hex task ID>"
+npm run agent -- earnings "$TASK_ID"
+npm run agent -- shield "$TASK_ID" 2
+npm run agent -- dashboard "$TASK_ID"
+```
+
+`earnings` reads Taskmarket's event-backed settlement awards and the wallet's
+current Base USDC balance. `shield` checks that the requested amount is no more
+than that task's award or the available balance, then requires the normal exact
+confirmation. A per-task public receipt prevents accidentally shielding the
+same task twice. If interrupted, run `status` and repeat `shield` with the same
+task ID and amount plus `--resume`; the local intent file binds the in-flight
+burn to that task. The dashboard re-reads the task before it exposes an action.
+
+USDC in an EOA is fungible: an award and a balance do not prove which specific
+coins are shielded. The task, award, and worker remain public. The dashboard
+suggests a rounded amount below the payout; you may choose another amount with
+the CLI. Base ETH is still needed to approve and burn USDC.
+
+The bundled `live/taskmarket-live.sh` remains a separate, Base-only example for
+creating and settling a small bounty. It pins `TASKMARKET_NETWORK=base` and uses
+the current Taskmarket CLI; it is not required for the earnings commands.
 
 Run `status` before re-running any deposit or withdrawal that appeared to fail.
 A transfer still in flight must be resumed, never reissued.
@@ -109,8 +143,8 @@ it.
 
 `live/.env.local` is gitignored and holds confidential StarkWare service
 endpoints plus the agent key and AVNU credentials. Nothing in it is committed,
-logged, or passed as a command-line argument. There is no bundler and no
-browser, so no secret has anywhere to leak to.
+logged, or passed as a command-line argument. The CLI has no bundler, and the
+local dashboard never sends secrets to its browser page.
 
 `bridge-core` hardcodes same-origin paths `/rpc`, `/prover` and `/indexer` with
 no env override, which Node's `fetch` rejects. `src/serviceFetch.ts` rewrites
@@ -126,8 +160,9 @@ can continue.
 ## Verified mainnet demo
 
 The full TaskMarket → Base CCTP → STRK20 → Starknet CCTP → fresh Base wallet
-route completed successfully on 2026-08-19. All seven commands are implemented;
-84 tests and the typecheck pass.
+route completed successfully on 2026-08-19 with the previous pinned versions.
+The current refresh has passed local tests and typecheck but has not yet repeated
+that live route.
 
 | Stage | Mainnet transaction | User-visible cost |
 |---|---|---:|
@@ -146,15 +181,19 @@ fresh Base wallet received 4.446817 USDC. The observed privacy-route charge was
 three approval transactions were retry overhead from issues fixed during the
 demo.
 
-`npm audit --omit=dev` currently reports known transitive advisories through the
-pinned upstream StarkWare/CDP dependency graph, including an unpatched
-`decompress` path through `starknet-devnet`. Treat this as unaudited demo code,
-not a production custody system, and review the dependency report before use.
+As of 2026-11-23, `npm audit --omit=dev` reports 19 transitive advisories
+(1 moderate, 17 high, 1 critical), primarily through the bridge's pinned SDK
+and WalletConnect dependencies. The SDK path includes `starknet-devnet` and
+`zod`. Treat this as unaudited demo code, not a production custody system, and
+review the dependency report before use.
 
 The version question is settled. The class deployed at the pool address is
 `0x67dddd89…`; `PRIVACY-0.14.3-RC.3` and `RC.4` both compile to exactly that
 hash, so bridge-core's `0.14.3-rc.3` pin is byte-exact against the live pool.
 Note the env doc's class hash (`0x030b8c54…`) does not match what is deployed.
+Privacy Bridge 0.1.24 still pins this SDK version. Newer standalone Privacy
+SDK releases are not a drop-in dependency bump for this bridge build; validate
+the deployed class, proof service, and bridge API together before changing it.
 
 The pool fee needs no STRK in the worker account: `sponsored_private` pays the
 Starknet execution cost through a relayer and charges the private balance in

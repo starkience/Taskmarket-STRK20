@@ -39,7 +39,11 @@ chmodSync(canonical, 0o600);
 
 let status = 1;
 try {
-  const result = spawnSync(cli, process.argv.slice(2), { cwd: workspace, stdio: "inherit" });
+  const result = spawnSync(cli, process.argv.slice(2), {
+    cwd: workspace,
+    env: { ...process.env, TASKMARKET_NETWORK: "base" },
+    stdio: "inherit",
+  });
   if (result.error) throw result.error;
   status = result.status ?? 1;
 } finally {

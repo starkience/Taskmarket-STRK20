@@ -2,7 +2,7 @@ import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { readTaskMarketState } from "./snapshot";
+import { readEarningIntent, readEarningReceipt, readTaskMarketState } from "./snapshot";
 
 describe("readTaskMarketState", () => {
   it("unwraps CLI responses and ignores unrelated JSON", () => {
@@ -41,5 +41,19 @@ describe("readTaskMarketState", () => {
 
     const state = readTaskMarketState(dir);
     expect(state).toMatchObject({ id: "0xtask", worker: "0xworker", submitted: true, settled: true });
+  });
+});
+
+describe("earnings recovery records", () => {
+  it("binds a receipt and in-flight intent to one task", () => {
+    const dir = mkdtempSync(join(tmpdir(), "strk20-earning-"));
+    const taskId = `0x${"a".repeat(64)}`;
+    writeFileSync(join(dir, `earning-${taskId}.json`), JSON.stringify({
+      taskId, amountNet: "1500000", burnTxHash: "0xburn", poolTxHash: "0xpool",
+    }));
+    writeFileSync(join(dir, "earning-intent.json"), JSON.stringify({ taskId, amountWei: "1600000" }));
+    expect(readEarningReceipt(dir, taskId)?.amountNet).toBe(1_500_000n);
+    expect(readEarningReceipt(dir, `0x${"b".repeat(64)}`)).toBeNull();
+    expect(readEarningIntent(dir)).toEqual({ taskId, amountWei: 1_600_000n });
   });
 });

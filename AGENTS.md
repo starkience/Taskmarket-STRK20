@@ -5,7 +5,7 @@ Entry point for any agent working on this repo. Read this before touching code.
 
 ## What this is
 
-A headless Node CLI that moves a TaskMarket USDC payout on Base through the
+A headless Node 24 CLI that moves a TaskMarket USDC payout on Base through the
 STRK20 privacy pool on Starknet and back out to a second Base address that
 cannot be linked to the first. Plus a local operator dashboard that shows ten
 checkpoints and exposes only the next valid action behind exact confirmation.
@@ -16,12 +16,19 @@ It is an unaudited mainnet demo, not a product.
 
 ```bash
 scripts/build-deps.sh          # only needed once; see D4 below
-npm install
+npm ci
 set -a; . live/.env.local; set +a
 NETWORK=mainnet npm run agent -- status
 NETWORK=mainnet npm run agent -- dashboard   # http://127.0.0.1:4173
-npm run check                  # 84 tests + typecheck
+npm run check                  # tests + typecheck
 ```
+
+For any completed Base Taskmarket task that awarded the configured agent EOA,
+run `npm run agent -- earnings <task-id>`, then `shield <task-id> <amount>`, or
+`dashboard <task-id>`. These read Taskmarket's settled awards; the local demo
+bounty is no longer required. `shield --resume` requires the same task ID and
+amount recorded in `live/.state/earning-intent.json`. Successful per-task
+receipts are stored as `earning-<task-id>.json` in that directory.
 
 `live/.env.local` is gitignored. A configured operator workspace contains both
 Alchemy RPCs, the StarkWare prover/discovery endpoints, the AVNU paymaster key,
@@ -29,11 +36,16 @@ the OZ class hash, and the agent keys; a fresh clone must provide them locally.
 
 ## State
 
-**Works and is verified on mainnet:** TaskMarket bounty creation, worker
+**Was verified on mainnet on 2026-08-19 with older pins:** TaskMarket bounty creation, worker
 submission and acceptance, Base → Starknet CCTP, STRK20 deposit, a deliberate
 resting period, STRK20 withdrawal, and Starknet → fresh Base CCTP. Every read
-path, safety guard, and guarded dashboard action is also verified. The browser
+path, safety guard, and guarded dashboard action was also verified then. The browser
 receives no private key.
+
+**Current refresh:** Taskmarket CLI 1.52.0 and privacy-bridge 0.1.24 build and
+pass local typecheck/tests under Node 24. Privacy SDK remains at 0.14.3-rc.3
+because bridge-core still pins it. The refreshed route has not had a new
+mainnet transaction.
 
 ## The three addresses
 

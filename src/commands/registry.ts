@@ -1,6 +1,8 @@
 export const COMMANDS = [
   "preflight",
   "identity",
+  "earnings",
+  "shield",
   "deposit",
   "balance",
   "transfer",

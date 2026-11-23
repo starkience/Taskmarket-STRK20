@@ -52,6 +52,21 @@ describe("dashboard actions", () => {
     expect(actions[0]).toMatchObject({ id: "deposit", confirmation: "deposit 5 USDC" });
   });
 
+  it("caps an attached task's deposit to its own payout and allows the next task", () => {
+    const taskId = `0x${"a".repeat(64)}`;
+    const task = { ...empty.task, id: taskId, settled: true, submitted: true,
+      source: "external" as const, workerPayment: 2_100_000n };
+    const first = deriveDashboardActions(snap({ task, baseUsdc: 20_000_000n }), Date.now());
+    expect(first[0]).toMatchObject({ id: "deposit", amount: "2", taskId });
+    const next = deriveDashboardActions(snap({
+      task: { ...task, id: `0x${"b".repeat(64)}` },
+      baseUsdc: 20_000_000n,
+      privateUsdc: 2_000_000n,
+      deposit: { taskId, amountNet: 2_000_000n, burnTxHash: "0x1", poolTxHash: "0x2", completedAt: new Date().toISOString() },
+    }), Date.now());
+    expect(next[0]).toMatchObject({ id: "deposit", amount: "2" });
+  });
+
   it("replaces a fresh deposit with resume whenever an inbound cursor exists", () => {
     const actions = deriveDashboardActions(
       snap({
@@ -64,6 +79,17 @@ describe("dashboard actions", () => {
     expect(actions).toEqual([
       expect.objectContaining({ id: "resume-deposit", confirmation: "deposit 5 USDC" }),
     ]);
+  });
+
+  it("only resumes an attached task when its persisted intent matches the burn", () => {
+    const taskId = `0x${"a".repeat(64)}`;
+    const task = { ...empty.task, id: taskId, source: "external" as const,
+      submitted: true, settled: true, workerPayment: 2_000_000n };
+    const transfer = { direction: "into-pool" as const, phase: "cctp-mint-in", amountWei: 1_500_000n };
+    expect(deriveDashboardActions(snap({ task, transfer }), Date.now())).toEqual([]);
+    expect(deriveDashboardActions(snap({ task, transfer,
+      earningIntent: { taskId, amountWei: 1_500_000n },
+    }), Date.now())[0]).toMatchObject({ id: "resume-deposit", taskId, amount: "1.5" });
   });
 
   it("does not expose withdrawal in the deposit dashboard session", () => {

@@ -24,7 +24,7 @@
 set -euo pipefail
 
 SDK_TAG="PRIVACY-0.14.3-RC.3"
-BRIDGE_COMMIT="0ba65f00fdee3af3419a7562c36b14fc2e92b8a7"
+BRIDGE_COMMIT="80277215ce66fffa148d7cb33217cfcf3b439bec"
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 OUT="$ROOT/vendor/tarballs"

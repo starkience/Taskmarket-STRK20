@@ -128,6 +128,10 @@ status() {
 
 require_tools
 export TASKMARKET_API_URL="$api_url"
+# Taskmarket no longer has a default chain. This runner is explicitly Base-only;
+# the privacy bridge below also burns Base USDC and must never follow a keystore
+# configured for Tempo or another network.
+export TASKMARKET_NETWORK=base
 
 case "${1:-}" in
   preflight) preflight ;;

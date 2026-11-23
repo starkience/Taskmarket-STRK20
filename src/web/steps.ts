@@ -25,9 +25,13 @@ export interface TaskMarketState {
   readonly submitted: boolean;
   readonly settled: boolean;
   readonly escrowTxHash: string | null;
+  /** Canonical settled amount paid to this agent, when read from Taskmarket. */
+  readonly workerPayment?: bigint;
+  readonly source?: "external";
 }
 
 export interface DepositReceipt {
+  readonly taskId?: string | null;
   readonly burnTxHash: string | null;
   readonly poolTxHash: string | null;
   readonly amountNet: bigint;
@@ -57,6 +61,7 @@ export interface Snapshot {
   readonly privateUsdc: bigint | null;
   readonly deposit: DepositReceipt | null;
   readonly withdrawal: WithdrawalReceipt | null;
+  readonly earningIntent?: { readonly taskId: string; readonly amountWei: bigint } | null;
 }
 
 const USDC = 6;
@@ -76,7 +81,9 @@ export function deriveSteps(s: Snapshot): Step[] {
   const movingIn = s.transfer?.direction === "into-pool";
   const movingOut = s.transfer?.direction === "from-pool";
   const inPool = s.privateUsdc !== null && s.privateUsdc > 0n;
-  const depositDone = Boolean(s.deposit) || inPool || movingOut || Boolean(s.withdrawal);
+  const depositDone = s.task.source === "external"
+    ? s.deposit?.taskId === s.task.id || movingOut
+    : Boolean(s.deposit) || inPool || movingOut || Boolean(s.withdrawal);
   const withdrawalDone = Boolean(s.withdrawal);
 
   const burnInDone = depositDone || movingIn;

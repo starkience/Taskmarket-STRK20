@@ -1,5 +1,10 @@
 # Live Base bounty → agent → STRK20 runbook
 
+Use Node 24. The bundled Taskmarket CLI is 1.52.0, and this runner pins
+`TASKMARKET_NETWORK=base`. For a payout from an existing completed task,
+use the `earnings`, `shield`, and `dashboard <task-id>` commands in the root
+README; the example bounty below is optional.
+
 This runbook creates a real TaskMarket bounty on Base, releases a real USDC
 payout, bridges public USDC to Starknet through CCTP, and deposits it into the
 STRK20 privacy pool — all driven by the headless agent.

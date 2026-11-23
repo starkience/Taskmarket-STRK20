@@ -12,6 +12,8 @@ import { deriveSignature, loadAgentAccount, loadPayoutAddress } from "../identit
 import { requireRpcUrl } from "../serviceFetch";
 import {
   readDepositReceipt,
+  readEarningReceipt,
+  readEarningIntent,
   readTaskMarketState,
   readWithdrawalReceipt,
 } from "../web/snapshot";
@@ -19,6 +21,7 @@ import { startDashboard } from "../web/server";
 import { deriveDashboardActions } from "../web/actions";
 import { createActionRunner } from "../web/actionRunner";
 import { formatUsdc, type Snapshot } from "../web/steps";
+import { readEarnedTask, validateTaskId } from "../taskmarket";
 
 // Base native USDC. Read directly rather than through bridge-core's Polygon
 // balance helper, which would couple this Base path to that package's viem types.
@@ -50,6 +53,9 @@ export async function dashboard(options: DashboardOptions): Promise<void> {
   const derived = deriveStarknetAccount(privateKey, ozClassHash);
   const payout = loadPayoutAddress(env) as Address;
   const stateDir = env.TASKMARKET_STATE_DIR?.trim() || "live/.state";
+  const externalTaskId = env.TASKMARKET_TASK_ID?.trim()
+    ? validateTaskId(env.TASKMARKET_TASK_ID.trim())
+    : undefined;
 
   const baseClient = createPublicClient({ chain: base, transport: http(env.BASE_RPC_URL) });
   // The absolute URL, not the same-origin "/rpc": starknet.js rejects a relative
@@ -64,12 +70,18 @@ export async function dashboard(options: DashboardOptions): Promise<void> {
   let last: Snapshot["baseUsdc"] = null;
   let lastPayout: Snapshot["payoutUsdc"] = null;
   let lastPrivate: Snapshot["privateUsdc"] = null;
+  let lastTask: Snapshot["task"] | null = null;
 
   startDashboard({
     port,
     log,
     readers: {
-      task: () => readTaskMarketState(stateDir),
+      task: async () => {
+        lastTask = externalTaskId
+          ? await readEarnedTask(externalTaskId, agent.address)
+          : readTaskMarketState(stateDir);
+        return lastTask;
+      },
       baseUsdc: async () => {
         last = await baseClient.readContract({
           address: BASE_USDC,
@@ -101,11 +113,14 @@ export async function dashboard(options: DashboardOptions): Promise<void> {
           ? { direction: status.direction, phase: status.phase, amountWei: status.amountWei }
           : null;
       },
-      deposit: () => readDepositReceipt(stateDir),
+      deposit: () => externalTaskId
+        ? readEarningReceipt(stateDir, externalTaskId)
+        : readDepositReceipt(stateDir),
       withdrawal: () => readWithdrawalReceipt(stateDir),
+      earningIntent: () => readEarningIntent(stateDir),
     },
     meta: () => {
-      const task = readTaskMarketState(stateDir);
+      const task = lastTask ?? readTaskMarketState(stateDir);
       return {
         task: task.id ?? "—",
         status: task.status ?? (task.id ? "open" : "not created"),
